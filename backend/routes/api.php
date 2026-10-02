@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\Store\ProductController as StoreProductController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use Illuminate\Http\Request;
@@ -20,6 +22,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
     });
 
+    // Public Storefront Catalog
+    Route::prefix('store')->group(function () {
+        Route::get('/products', [StoreProductController::class, 'index'])->name('api.v1.store.products.index');
+        Route::get('/products/{idOrSku}', [StoreProductController::class, 'show'])->name('api.v1.store.products.show');
+    });
+
     // Protected Authenticated Routes (Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('auth')->group(function () {
@@ -27,8 +35,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
         });
 
-        // Administrator Protected Routes
+        // Administrator Protected Routes (Role: admin)
         Route::middleware('role.admin')->prefix('admin')->group(function () {
+            // Dashboard verification endpoint
             Route::get('/dashboard', function (Request $request) {
                 return response()->json([
                     'status' => 'ok',
@@ -42,6 +51,9 @@ Route::prefix('v1')->group(function () {
                     'timestamp' => now()->toIso8601String(),
                 ]);
             })->name('api.v1.admin.dashboard');
+
+            // Product Catalog Management CRUD
+            Route::apiResource('products', AdminProductController::class)->names('api.v1.admin.products');
         });
     });
 });

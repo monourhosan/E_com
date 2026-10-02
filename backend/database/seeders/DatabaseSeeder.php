@@ -36,5 +36,8 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Seed Product Catalog
+        $this->call(ProductSeeder::class);
     }
 }

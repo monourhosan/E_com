@@ -9,6 +9,54 @@ export interface User {
   phone?: string | null;
 }
 
+export interface Product {
+  id: number;
+  name: string;
+  sku: string;
+  category: string;
+  description: string | null;
+  price: number;
+  formatted_price: string;
+  stock: number;
+  status: "active" | "draft" | "archived";
+  image_url: string;
+  is_in_stock: boolean;
+  stock_badge: "in_stock" | "low_stock" | "out_of_stock";
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaginatedMeta {
+  current_page: number;
+  from?: number;
+  last_page: number;
+  per_page: number;
+  to?: number;
+  total: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  links?: {
+    first: string;
+    last: string;
+    prev: string | null;
+    next: string | null;
+  };
+  meta?: PaginatedMeta;
+}
+
+export interface ProductFilters {
+  search?: string;
+  category?: string;
+  min_price?: number;
+  max_price?: number;
+  sort?: "price_asc" | "price_desc" | "latest" | "name_asc";
+  page?: number;
+  per_page?: number;
+  status?: string;
+}
+
 export interface AuthResponse {
   status: string;
   message: string;
@@ -115,6 +163,18 @@ export async function fetchApi<T>(
   }
 }
 
+// Helper to serialize query params safely
+function buildQueryString(params: Record<string, unknown>): string {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.append(key, String(value));
+    }
+  });
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 export const api = {
   health: {
     check: () => fetchApi<HealthCheckResponse>("/health"),
@@ -131,7 +191,29 @@ export const api = {
       }),
     me: () => fetchApi<{ status: string; user: User }>("/auth/me"),
   },
+  store: {
+    getProducts: (filters: ProductFilters = {}) =>
+      fetchApi<PaginatedResponse<Product>>(`/store/products${buildQueryString(filters as Record<string, unknown>)}`),
+    getProduct: (idOrSku: string | number) =>
+      fetchApi<{ data: Product }>(`/store/products/${idOrSku}`),
+  },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),
+    getProducts: (filters: ProductFilters = {}) =>
+      fetchApi<PaginatedResponse<Product>>(`/admin/products${buildQueryString(filters as Record<string, unknown>)}`),
+    createProduct: (data: Partial<Product>) =>
+      fetchApi<{ status: string; data: Product }>("/admin/products", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    updateProduct: (id: number, data: Partial<Product>) =>
+      fetchApi<{ status: string; data: Product }>(`/admin/products/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    deleteProduct: (id: number) =>
+      fetchApi<{ status: string; message: string }>(`/admin/products/${id}`, {
+        method: "DELETE",
+      }),
   },
 };
