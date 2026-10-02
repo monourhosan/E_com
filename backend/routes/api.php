@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\Store\CartValidationController;
 use App\Http\Controllers\Api\Store\ProductController as StoreProductController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -22,10 +23,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
     });
 
-    // Public Storefront Catalog
+    // Public Storefront Catalog & Cart
     Route::prefix('store')->group(function () {
+        // Products Catalog
         Route::get('/products', [StoreProductController::class, 'index'])->name('api.v1.store.products.index');
         Route::get('/products/{idOrSku}', [StoreProductController::class, 'show'])->name('api.v1.store.products.show');
+
+        // Cart Calculation & Stock Validation
+        Route::post('/cart/validate', [CartValidationController::class, 'validateCart'])->name('api.v1.store.cart.validate');
     });
 
     // Protected Authenticated Routes (Sanctum)

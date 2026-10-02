@@ -1,6 +1,6 @@
-import * as React from "react";
 import Link from "next/link";
 import { Product } from "@/lib/api-client";
+import { useCart } from "@/context/cart-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { addItem } = useCart();
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 5;
 
@@ -97,6 +98,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <Button
             size="sm"
             disabled={isOutOfStock}
+            onClick={() => addItem(product, 1)}
             className="h-8 px-3 text-xs gap-1.5 shadow-sm font-semibold"
             title={isOutOfStock ? "Product is currently out of stock" : "Add to cart"}
           >

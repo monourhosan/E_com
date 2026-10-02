@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { useProduct } from "@/hooks/use-products";
+import { useCart } from "@/context/cart-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +31,7 @@ export default function ProductDetailPage() {
 
   const { data: product, isLoading, isError } = useProduct(productId);
   const [quantity, setQuantity] = React.useState(1);
+  const { addItem, openCart } = useCart();
 
   if (isLoading) {
     return (
@@ -79,9 +81,8 @@ export default function ProductDetailPage() {
   const maxAvailable = Math.max(product.stock, 1);
 
   const handleAddToCart = () => {
-    toast.success("Added to Cart!", {
-      description: `${quantity} × ${product.name} prepared for checkout (Part 4 system)`,
-    });
+    addItem(product, quantity);
+    openCart();
   };
 
   return (

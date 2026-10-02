@@ -26,6 +26,43 @@ export interface Product {
   updated_at?: string;
 }
 
+export interface CartValidationItem {
+  product_id: number;
+  name: string;
+  sku: string;
+  category?: string;
+  image_url?: string;
+  unit_price: number;
+  formatted_unit_price: string;
+  quantity: number;
+  subtotal: number;
+  formatted_subtotal: string;
+  available_stock: number;
+  is_stock_sufficient: boolean;
+}
+
+export interface CartValidationSummary {
+  subtotal: number;
+  tax: number;
+  tax_rate_percent: number;
+  shipping_fee: number;
+  free_shipping_threshold: number;
+  is_free_shipping: boolean;
+  amount_needed_for_free_shipping: number;
+  total_amount: number;
+  formatted_subtotal: string;
+  formatted_tax: string;
+  formatted_shipping_fee: string;
+  formatted_total_amount: string;
+}
+
+export interface CartValidationResponse {
+  valid: boolean;
+  errors: string[];
+  items: CartValidationItem[];
+  summary: CartValidationSummary;
+}
+
 export interface PaginatedMeta {
   current_page: number;
   from?: number;
@@ -163,7 +200,6 @@ export async function fetchApi<T>(
   }
 }
 
-// Helper to serialize query params safely
 function buildQueryString(params: Record<string, unknown>): string {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -196,6 +232,11 @@ export const api = {
       fetchApi<PaginatedResponse<Product>>(`/store/products${buildQueryString(filters as Record<string, unknown>)}`),
     getProduct: (idOrSku: string | number) =>
       fetchApi<{ data: Product }>(`/store/products/${idOrSku}`),
+    validateCart: (payload: { items: { product_id: number; quantity: number }[] }) =>
+      fetchApi<CartValidationResponse>("/store/cart/validate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),

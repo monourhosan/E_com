@@ -12,14 +12,15 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
+import { useCart } from "@/context/cart-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export function Navbar() {
   const router = useRouter();
+  const { totalItems, openCart } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const cartItemCount = 0; // Will be connected to cart state in Part 4
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,13 +107,14 @@ export function Navbar() {
           <Button
             variant="outline"
             size="icon"
+            onClick={openCart}
             className="relative rounded-full h-10 w-10 border-input hover:bg-accent"
             aria-label="Shopping Cart"
           >
             <ShoppingBag className="h-5 w-5" />
-            {cartItemCount > 0 ? (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm">
-                {cartItemCount}
+            {totalItems > 0 ? (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm animate-in zoom-in-50">
+                {totalItems}
               </span>
             ) : (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[9px] font-medium text-muted-foreground">
