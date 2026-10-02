@@ -1,11 +1,20 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export interface ApiResponse<T> {
-  data?: T;
-  message?: string;
-  error?: string;
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "customer";
+  phone?: string | null;
+}
+
+export interface AuthResponse {
   status: string;
+  message: string;
+  access_token: string;
+  token_type: string;
+  user: User;
 }
 
 export interface HealthCheckResponse {
@@ -15,6 +24,13 @@ export interface HealthCheckResponse {
   service: string;
   environment?: string;
   version?: string;
+}
+
+export interface AdminDashboardResponse {
+  status: string;
+  message: string;
+  admin: User;
+  timestamp: string;
 }
 
 export class ApiError extends Error {
@@ -28,23 +44,47 @@ export class ApiError extends Error {
   }
 }
 
+// Client-side token storage helper
+export const tokenStorage = {
+  get: (): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("apex_auth_token");
+  },
+  set: (token: string): void => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("apex_auth_token", token);
+    }
+  },
+  remove: (): void => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("apex_auth_token");
+    }
+  },
+};
+
 export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-  const defaultHeaders: HeadersInit = {
+  const token = tokenStorage.get();
+
+  const defaultHeaders: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
   };
+
+  if (token) {
+    defaultHeaders["Authorization"] = `Bearer ${token}`;
+  }
 
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         ...defaultHeaders,
-        ...options.headers,
+        ...(options.headers as Record<string, string>),
       },
       credentials: "include",
     });
@@ -57,7 +97,8 @@ export async function fetchApi<T>(
         errorBody = await response.text();
       }
       throw new ApiError(
-        `API request failed with status ${response.status}`,
+        (errorBody as { message?: string })?.message ||
+          `API request failed with status ${response.status}`,
         response.status,
         errorBody
       );
@@ -77,5 +118,20 @@ export async function fetchApi<T>(
 export const api = {
   health: {
     check: () => fetchApi<HealthCheckResponse>("/health"),
+  },
+  auth: {
+    login: (credentials: { email: string; password: string }) =>
+      fetchApi<AuthResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      }),
+    logout: () =>
+      fetchApi<{ status: string; message: string }>("/auth/logout", {
+        method: "POST",
+      }),
+    me: () => fetchApi<{ status: string; user: User }>("/auth/me"),
+  },
+  admin: {
+    dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),
   },
 };
