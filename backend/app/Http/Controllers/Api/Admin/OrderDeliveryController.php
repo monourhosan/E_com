@@ -21,7 +21,7 @@ class OrderDeliveryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Order::with(['items', 'delivery', 'latestPayment'])
+        $query = Order::with(['items.product', 'delivery', 'latestPayment'])
             ->latest();
 
         if ($status = $request->query('status')) {

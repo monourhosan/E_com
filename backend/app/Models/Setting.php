@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
@@ -36,7 +37,7 @@ class Setting extends Model
     }
 
     /**
-     * Retrieve a setting value by key with optional default.
+     * Retrieve a setting value by key with optional default, cached forever in Redis.
      *
      * @param string $key
      * @param mixed $default
@@ -44,12 +45,14 @@ class Setting extends Model
      */
     public static function get(string $key, mixed $default = null): mixed
     {
-        $setting = static::find($key);
-        return $setting ? $setting->value : $default;
+        return Cache::rememberForever("setting_{$key}", function () use ($key, $default) {
+            $setting = static::find($key);
+            return $setting ? $setting->value : $default;
+        });
     }
 
     /**
-     * Store or update a setting value.
+     * Store or update a setting value, invalidating the cached key.
      *
      * @param string $key
      * @param mixed $value
@@ -57,10 +60,15 @@ class Setting extends Model
      */
     public static function set(string $key, mixed $value): static
     {
-        return static::updateOrCreate(
+        $setting = static::updateOrCreate(
             ['key' => $key],
             ['value' => $value]
         );
+
+        Cache::forget("setting_{$key}");
+        Cache::forget('store_settings');
+
+        return $setting;
     }
 
     /**
