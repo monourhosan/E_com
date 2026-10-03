@@ -63,6 +63,61 @@ export interface CartValidationResponse {
   summary: CartValidationSummary;
 }
 
+export interface OrderItem {
+  id: number;
+  order_id: number;
+  product_id: number;
+  product_name: string;
+  product_sku: string;
+  unit_price: number;
+  formatted_unit_price: string;
+  quantity: number;
+  subtotal: number;
+  formatted_subtotal: string;
+  image_url?: string;
+}
+
+export interface Order {
+  id: number;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  shipping_address: string;
+  subtotal: number;
+  formatted_subtotal: string;
+  tax: number;
+  formatted_tax: string;
+  shipping_fee: number;
+  formatted_shipping_fee: string;
+  total_amount: number;
+  formatted_total_amount: string;
+  status: "pending_payment" | "paid" | "processing" | "dispatched" | "completed" | "cancelled";
+  payment_method: "bkash" | "sslcommerz" | "cod";
+  notes?: string | null;
+  items?: OrderItem[];
+  items_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CheckoutPayload {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  shipping_address: string;
+  payment_method: "bkash" | "sslcommerz" | "cod";
+  notes?: string;
+  items: {
+    product_id: number;
+    quantity: number;
+  }[];
+}
+
+export interface CheckoutResponse {
+  data: Order;
+}
+
 export interface PaginatedMeta {
   current_page: number;
   from?: number;
@@ -237,6 +292,13 @@ export const api = {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+    checkout: (payload: CheckoutPayload) =>
+      fetchApi<CheckoutResponse>("/store/checkout", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getOrder: (orderNumber: string) =>
+      fetchApi<{ data: Order }>(`/store/orders/${orderNumber}`),
   },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),

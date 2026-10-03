@@ -99,4 +99,21 @@ class Product extends Model
 
         return 'in_stock';
     }
+
+    /**
+     * Get order items associated with this product.
+     */
+    public function orderItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Get inventory audit trail logs for this product.
+     */
+    public function inventoryLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(InventoryLog::class);
+    }
 }
+

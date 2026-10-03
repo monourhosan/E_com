@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.67.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -16,8 +17,10 @@
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.89.0",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.0.2"
+    "tailwind-merge": "^3.0.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
