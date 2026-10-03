@@ -266,6 +266,70 @@ export interface AdminDashboardResponse {
   timestamp: string;
 }
 
+export interface DashboardStatsResponse {
+  status: string;
+  timestamp: string;
+  kpis: {
+    today_revenue: number;
+    formatted_today_revenue: string;
+    last_7_days_revenue: number;
+    formatted_last_7_days_revenue: string;
+    last_30_days_revenue: number;
+    formatted_last_30_days_revenue: string;
+    total_revenue: number;
+    formatted_total_revenue: string;
+    average_order_value: number;
+    formatted_average_order_value: string;
+    attention_queue_count: number;
+    low_stock_count: number;
+    out_of_stock_count: number;
+    total_products: number;
+  };
+  order_counts: {
+    pending_payment: number;
+    paid: number;
+    dispatched: number;
+    completed: number;
+    cancelled: number;
+    total: number;
+  };
+  attention_orders: Order[];
+  low_stock_items: {
+    id: number;
+    name: string;
+    sku: string;
+    price: string | number;
+    stock: number;
+    status: string;
+  }[];
+  delivery_pipeline: {
+    pending: number;
+    dispatched: number;
+    in_transit: number;
+    delivered: number;
+    failed: number;
+    total: number;
+  };
+  sales_chart: {
+    date: string;
+    label: string;
+    sales: number;
+    orders: number;
+  }[];
+}
+
+export interface InventoryLog {
+  id: number;
+  product_id: number;
+  quantity_change: number;
+  balance_after: number;
+  reference_type: string;
+  reference_id: number | null;
+  created_at: string;
+  updated_at: string;
+  product?: Product;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -414,16 +478,31 @@ export const api = {
   },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),
+    getDashboardStats: () => fetchApi<DashboardStatsResponse>("/admin/dashboard/stats"),
     getOrders: (params?: { page?: number; per_page?: number; status?: string; search?: string }) =>
       fetchApi<PaginatedResponse<Order>>(`/admin/orders${buildQueryString((params || {}) as Record<string, unknown>)}`),
     getOrder: (id: string | number) =>
       fetchApi<{ order: Order; delivery?: Delivery }>(`/admin/orders/${id}`),
+    updateOrderStatus: (id: string | number, payload: { status: string; notes?: string }) =>
+      fetchApi<{ status: string; message: string; order: Order }>(`/admin/orders/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
     dispatchDelivery: (id: string | number, sync = false) =>
       fetchApi<DispatchDeliveryResponse>(`/admin/orders/${id}/dispatch-delivery?sync=${sync}`, {
         method: "POST",
       }),
     getDeliveryStatus: (id: string | number) =>
       fetchApi<DeliveryStatusResponse>(`/admin/orders/${id}/delivery-status`),
+    getInventory: (params?: { page?: number; per_page?: number; search?: string; stock_status?: string }) =>
+      fetchApi<PaginatedResponse<Product>>(`/admin/inventory${buildQueryString((params || {}) as Record<string, unknown>)}`),
+    adjustInventory: (payload: { product_id: number; quantity_change: number; reason: string }) =>
+      fetchApi<{ status: string; message: string; product: Product; log: InventoryLog }>("/admin/inventory/adjust", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getInventoryLogs: (params?: { page?: number; per_page?: number; product_id?: number }) =>
+      fetchApi<PaginatedResponse<InventoryLog>>(`/admin/inventory/logs${buildQueryString((params || {}) as Record<string, unknown>)}`),
     getProducts: (filters: ProductFilters = {}) =>
       fetchApi<PaginatedResponse<Product>>(`/admin/products${buildQueryString(filters as Record<string, unknown>)}`),
     createProduct: (data: Partial<Product>) =>

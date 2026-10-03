@@ -119,6 +119,17 @@ export default function AdminLayout({
                 Orders & Delivery
               </Link>
               <Link
+                href="/admin/inventory"
+                className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
+                  pathname?.startsWith("/admin/inventory")
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <Package className="h-3.5 w-3.5" />
+                Inventory
+              </Link>
+              <Link
                 href="/admin/settings/payment"
                 className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
                   pathname === "/admin/settings/payment"
@@ -196,6 +207,13 @@ export default function AdminLayout({
               className="block px-3 py-2 rounded-md text-xs font-medium hover:bg-slate-800"
             >
               Orders & CarryBee Delivery
+            </Link>
+            <Link
+              href="/admin/inventory"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-md text-xs font-medium hover:bg-slate-800"
+            >
+              Inventory Management
             </Link>
             <Link
               href="/admin/settings/payment"

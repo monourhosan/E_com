@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\InventoryController;
 use App\Http\Controllers\Api\Admin\OrderDeliveryController;
 use App\Http\Controllers\Api\Admin\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
@@ -74,12 +76,21 @@ Route::prefix('v1')->group(function () {
                 ]);
             })->name('api.v1.admin.dashboard');
 
+            // Executive Business Dashboard Stats & Chart Velocity
+            Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('api.v1.admin.dashboard.stats');
+
             // Product Catalog Management CRUD
             Route::apiResource('products', AdminProductController::class)->names('api.v1.admin.products');
+
+            // Inventory Management & Stock Adjustments
+            Route::get('/inventory', [InventoryController::class, 'index'])->name('api.v1.admin.inventory.index');
+            Route::post('/inventory/adjust', [InventoryController::class, 'adjust'])->name('api.v1.admin.inventory.adjust');
+            Route::get('/inventory/logs', [InventoryController::class, 'logs'])->name('api.v1.admin.inventory.logs');
 
             // Order Management & CarryBee Courier Dispatch
             Route::get('/orders', [OrderDeliveryController::class, 'index'])->name('api.v1.admin.orders.index');
             Route::get('/orders/{id}', [OrderDeliveryController::class, 'show'])->name('api.v1.admin.orders.show');
+            Route::put('/orders/{id}/status', [OrderDeliveryController::class, 'updateStatus'])->name('api.v1.admin.orders.update_status');
             Route::post('/orders/{id}/dispatch-delivery', [OrderDeliveryController::class, 'dispatchDelivery'])->name('api.v1.admin.orders.dispatch_delivery');
             Route::get('/orders/{id}/delivery-status', [OrderDeliveryController::class, 'deliveryStatus'])->name('api.v1.admin.orders.delivery_status');
 

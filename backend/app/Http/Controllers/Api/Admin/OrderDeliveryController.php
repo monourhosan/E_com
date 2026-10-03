@@ -199,4 +199,72 @@ class OrderDeliveryController extends Controller
             'tracking' => $tracking,
         ]);
     }
+
+    /**
+     * Update order status with stock adjustment if cancelling.
+     *
+     * @param Request $request
+     * @param string|int $id
+     * @return JsonResponse
+     */
+    public function updateStatus(Request $request, string|int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:pending_payment,paid,dispatched,completed,cancelled'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($id, $validated) {
+            $order = Order::with('items')
+                ->where(function ($q) use ($id) {
+                    if (is_numeric($id)) {
+                        $q->where('id', $id)->orWhere('order_number', (string) $id);
+                    } else {
+                        $q->where('order_number', $id);
+                    }
+                })
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $oldStatus = $order->status;
+            $newStatus = $validated['status'];
+
+            // If cancelling an order that was NOT already cancelled, restore inventory stock
+            if ($newStatus === Order::STATUS_CANCELLED && $oldStatus !== Order::STATUS_CANCELLED) {
+                foreach ($order->items as $item) {
+                    $product = \App\Models\Product::where('id', $item->product_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($product) {
+                        $product->increment('stock', $item->quantity);
+
+                        \App\Models\InventoryLog::create([
+                            'product_id' => $product->id,
+                            'quantity_change' => $item->quantity,
+                            'balance_after' => $product->fresh()->stock,
+                            'reference_type' => 'manual_admin_order_cancellation',
+                            'reference_id' => $order->id,
+                        ]);
+                    }
+                }
+            }
+
+            $orderNotes = $order->notes;
+            if (! empty($validated['notes'])) {
+                $orderNotes = ($orderNotes ? $orderNotes . ' | ' : '') . $validated['notes'];
+            }
+
+            $order->update([
+                'status' => $newStatus,
+                'notes' => $orderNotes,
+            ]);
+
+            return response()->json([
+                'status' => 'ok',
+                'message' => "Order #{$order->order_number} status updated to {$newStatus}.",
+                'order' => $order->fresh(['items', 'delivery']),
+            ]);
+        });
+    }
 }
