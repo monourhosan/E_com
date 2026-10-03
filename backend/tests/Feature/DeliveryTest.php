@@ -64,7 +64,7 @@ class DeliveryTest extends TestCase
         ]);
     }
 
-    public function test_order_paid_event_triggers_queued_carrybee_job(): void
+    public function test_paying_order_dispatches_carrybee_queued_job(): void
     {
         Queue::fake();
 
@@ -73,6 +73,76 @@ class DeliveryTest extends TestCase
         Queue::assertPushedOn('deliveries', DispatchCarryBeeOrderJob::class, function ($job) {
             return $job->order->id === $this->order->id;
         });
+    }
+
+    public function test_carrybee_job_creates_delivery_record_with_consignment_id(): void
+    {
+        config([
+            'services.carrybee.sandbox' => false,
+            'services.carrybee.client_id' => 'test-client',
+            'services.carrybee.client_secret' => 'test-secret',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            '*/consignments/create' => \Illuminate\Support\Facades\Http::response([
+                'success' => true,
+                'consignment_id' => 'CB-CN-2026-HTTPFAKE',
+                'tracking_code' => 'TRK-HTTPFAKE',
+                'delivery_fee' => 60.00,
+                'status' => 'In Review',
+            ], 200),
+        ]);
+
+        $service = app(CarryBeeService::class);
+        $job = new DispatchCarryBeeOrderJob($this->order);
+        $job->handle($service);
+
+        $this->assertDatabaseHas('deliveries', [
+            'order_id' => $this->order->id,
+            'courier' => 'CarryBee',
+            'consignment_id' => 'CB-CN-2026-HTTPFAKE',
+            'tracking_code' => 'TRK-HTTPFAKE',
+            'status' => Delivery::STATUS_DISPATCHED,
+        ]);
+    }
+
+    public function test_carrybee_job_handles_external_api_failure_and_retries(): void
+    {
+        config([
+            'services.carrybee.sandbox' => false,
+            'services.carrybee.client_id' => 'test-client',
+            'services.carrybee.client_secret' => 'test-secret',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fakeSequence()
+            ->push(['message' => 'Internal Courier Gateway Error'], 500)
+            ->push([
+                'success' => true,
+                'consignment_id' => 'CB-CN-2026-RETRYSUCCESS',
+                'tracking_code' => 'TRK-RETRYSUCCESS',
+                'delivery_fee' => 60.00,
+                'status' => 'In Review',
+            ], 200);
+
+        $service = app(CarryBeeService::class);
+        $job = new DispatchCarryBeeOrderJob($this->order);
+
+        // First attempt fails throwing DeliveryApiException
+        try {
+            $job->handle($service);
+            $this->fail('Expected DeliveryApiException was not thrown on 500 failure');
+        } catch (\App\Exceptions\DeliveryApiException $e) {
+            $this->assertStringContainsString('500', $e->getMessage());
+        }
+
+        // Retry attempt succeeds with the second queued mock response
+        $job->handle($service);
+
+        $this->assertDatabaseHas('deliveries', [
+            'order_id' => $this->order->id,
+            'consignment_id' => 'CB-CN-2026-RETRYSUCCESS',
+            'status' => Delivery::STATUS_DISPATCHED,
+        ]);
     }
 
     public function test_carrybee_service_creates_consignment_successfully(): void

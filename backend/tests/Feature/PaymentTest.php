@@ -71,7 +71,7 @@ class PaymentTest extends TestCase
         ]);
     }
 
-    public function test_successful_payment_callback_marks_order_as_paid_and_dispatches_event(): void
+    public function test_successful_payment_callback_updates_order_status_to_paid(): void
     {
         Event::fake();
 
@@ -104,7 +104,7 @@ class PaymentTest extends TestCase
         Event::assertDispatched(\App\Events\OrderPaid::class);
     }
 
-    public function test_duplicate_callback_is_idempotent_and_returns_already_processed(): void
+    public function test_duplicate_payment_callback_is_idempotent_and_does_not_double_process(): void
     {
         // 1. Create a payment record already processed
         $payment = Payment::create([
@@ -132,6 +132,38 @@ class PaymentTest extends TestCase
 
         // Verify order status remains paid
         $this->assertEquals(Order::STATUS_PAID, $this->order->fresh()->status);
+    }
+
+    public function test_failed_payment_callback_marks_payment_failed_without_dispatching_courier(): void
+    {
+        Event::fake();
+
+        // 1. Initiate payment first
+        $initRes = $this->postJson("/api/v1/store/orders/{$this->order->order_number}/pay", [
+            'gateway' => 'bkash',
+        ]);
+        $paymentRecordId = $initRes->json('data.payment_record_id');
+
+        // 2. Fire failure callback
+        $callbackRes = $this->postJson('/api/v1/payments/callback/bkash', [
+            'payment_record_id' => $paymentRecordId,
+            'transaction_id' => 'TRX_FAILED_01',
+            'status' => 'failed',
+            'reason' => 'User cancelled payment on mobile wallet PIN prompt',
+        ]);
+
+        $callbackRes->assertStatus(200)
+            ->assertJsonPath('status', 'failed');
+
+        // Verify payment is marked failed and order remains pending_payment
+        $this->assertDatabaseHas('payments', [
+            'id' => $paymentRecordId,
+            'status' => 'failed',
+        ]);
+        $this->assertEquals(Order::STATUS_PENDING_PAYMENT, $this->order->fresh()->status);
+
+        // Verify NO OrderPaid event was dispatched
+        Event::assertNotDispatched(\App\Events\OrderPaid::class);
     }
 
     public function test_admin_can_toggle_payment_gateway_and_disabled_gateway_is_rejected(): void

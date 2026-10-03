@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Seed Product Catalog
-        $this->call(ProductSeeder::class);
+        // Seed Realistic E-Commerce Catalog & Orders
+        $this->call(RealisticEcommerceSeeder::class);
     }
 }
