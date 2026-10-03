@@ -34,6 +34,18 @@ class OrderResource extends JsonResource
             'notes' => $this->notes,
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             'items_count' => $this->items?->count() ?? 0,
+            'delivery' => $this->whenLoaded('delivery', function () {
+                return [
+                    'id' => $this->delivery->id,
+                    'courier' => $this->delivery->courier,
+                    'consignment_id' => $this->delivery->consignment_id,
+                    'tracking_code' => $this->delivery->tracking_code,
+                    'delivery_fee' => (float) $this->delivery->delivery_fee,
+                    'status' => $this->delivery->status,
+                    'failure_reason' => $this->delivery->failure_reason,
+                    'dispatched_at' => $this->delivery->dispatched_at?->toIso8601String(),
+                ];
+            }),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

@@ -56,7 +56,7 @@ class CheckoutController extends Controller
      */
     public function show(string $orderNumber): JsonResponse
     {
-        $order = Order::with(['items', 'items.product'])
+        $order = Order::with(['items', 'items.product', 'delivery', 'latestPayment'])
             ->where('order_number', $orderNumber)
             ->first();
 

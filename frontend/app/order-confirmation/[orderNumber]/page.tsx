@@ -24,6 +24,7 @@ import {
   Clock,
   Check,
   ShieldCheck,
+  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +38,7 @@ function OrderConfirmationContent() {
   const [order, setOrder] = React.useState<Order | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
+  const [copiedTracking, setCopiedTracking] = React.useState(false);
 
   React.useEffect(() => {
     if (!orderNumber) return;
@@ -49,7 +51,17 @@ function OrderConfirmationContent() {
         // Attempt authoritative backend API fetch
         const res = await api.store.getOrder(orderNumber);
         if (isMounted) {
-          setOrder(res.data);
+          const ord = res.data;
+          // If delivery not embedded but order is paid or dispatched, try fetching delivery
+          if (!ord.delivery && (ord.status === "paid" || ord.status === "dispatched" || isPaymentSuccess)) {
+            try {
+              const delRes = await api.store.getDeliveryStatus(orderNumber);
+              if (delRes.delivery) {
+                ord.delivery = delRes.delivery;
+              }
+            } catch {}
+          }
+          setOrder(ord);
         }
       } catch {
         // Fallback to offline / simulated order storage
@@ -67,7 +79,16 @@ function OrderConfirmationContent() {
     return () => {
       isMounted = false;
     };
-  }, [orderNumber]);
+  }, [orderNumber, isPaymentSuccess]);
+
+  const handleCopyTracking = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedTracking(true);
+    toast.success("Tracking Code Copied", {
+      description: `CarryBee tracking code ${code} copied to clipboard.`,
+    });
+    setTimeout(() => setCopiedTracking(false), 2000);
+  };
 
   const handleCopyOrderNumber = () => {
     if (!orderNumber) return;
@@ -207,6 +228,75 @@ function OrderConfirmationContent() {
               </Link>
             </div>
           </div>
+
+          {/* CarryBee Courier Tracking Card (When Dispatched or Available) */}
+          {order.delivery && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-b border-amber-500/20 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-foreground">
+                        CarryBee Courier Dispatch
+                      </span>
+                      <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30 text-[10px] uppercase font-mono">
+                        {order.delivery.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Consignment ID: #{order.delivery.consignment_id || "Pending"}
+                    </p>
+                  </div>
+                </div>
+
+                {order.delivery.tracking_code && (
+                  <div className="flex items-center gap-2 bg-background/80 p-2 rounded-xl border text-xs">
+                    <span className="text-muted-foreground font-medium">Tracking Code:</span>
+                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                      {order.delivery.tracking_code}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTracking(order.delivery!.tracking_code!)}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy Tracking Code"
+                    >
+                      {copiedTracking ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress Milestones */}
+              <div className="grid grid-cols-3 gap-2 pt-2 text-[11px]">
+                <div className="p-2.5 rounded-lg bg-background/60 border border-border/60">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    ✓ Confirmed
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Order received</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-background/60 border border-border/60">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    ✓ Handed Over
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">CarryBee pickup</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-background/60 border border-border/60">
+                  <span className={`font-bold flex items-center gap-1 ${order.delivery.status === "delivered" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                    {order.delivery.status === "delivered" ? "✓ Delivered" : "In Transit"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Last-mile dispatch</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Quick Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x border-b text-xs">

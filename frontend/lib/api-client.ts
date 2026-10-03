@@ -97,8 +97,55 @@ export interface Order {
   notes?: string | null;
   items?: OrderItem[];
   items_count?: number;
+  delivery?: Delivery | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Delivery {
+  id: number;
+  order_id: number;
+  courier: string;
+  consignment_id: string | null;
+  tracking_code: string | null;
+  delivery_fee: number;
+  status: "pending" | "dispatched" | "in_transit" | "delivered" | "failed";
+  request_payload?: Record<string, unknown> | null;
+  response_payload?: Record<string, unknown> | null;
+  failure_reason?: string | null;
+  dispatched_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TrackingEvent {
+  status: string;
+  time: string;
+  location: string;
+}
+
+export interface DeliveryTracking {
+  consignment_id: string;
+  status: string;
+  events?: TrackingEvent[];
+  error?: string;
+}
+
+export interface DeliveryStatusResponse {
+  order_id: number;
+  order_number: string;
+  has_delivery: boolean;
+  delivery: Delivery | null;
+  tracking: DeliveryTracking | null;
+  message?: string;
+}
+
+export interface DispatchDeliveryResponse {
+  message: string;
+  order_id: number;
+  order_number: string;
+  status?: string;
+  delivery?: Delivery;
 }
 
 export interface CheckoutPayload {
@@ -362,9 +409,21 @@ export const api = {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+    getDeliveryStatus: (orderNumber: string) =>
+      fetchApi<DeliveryStatusResponse>(`/store/orders/${orderNumber}/delivery-status`),
   },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),
+    getOrders: (params?: { page?: number; per_page?: number; status?: string; search?: string }) =>
+      fetchApi<PaginatedResponse<Order>>(`/admin/orders${buildQueryString((params || {}) as Record<string, unknown>)}`),
+    getOrder: (id: string | number) =>
+      fetchApi<{ order: Order; delivery?: Delivery }>(`/admin/orders/${id}`),
+    dispatchDelivery: (id: string | number, sync = false) =>
+      fetchApi<DispatchDeliveryResponse>(`/admin/orders/${id}/dispatch-delivery?sync=${sync}`, {
+        method: "POST",
+      }),
+    getDeliveryStatus: (id: string | number) =>
+      fetchApi<DeliveryStatusResponse>(`/admin/orders/${id}/delivery-status`),
     getProducts: (filters: ProductFilters = {}) =>
       fetchApi<PaginatedResponse<Product>>(`/admin/products${buildQueryString(filters as Record<string, unknown>)}`),
     createProduct: (data: Partial<Product>) =>

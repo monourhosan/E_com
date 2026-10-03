@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   CreditCard,
+  Truck,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -107,6 +108,17 @@ export default function AdminLayout({
                 Dashboard
               </Link>
               <Link
+                href="/admin/orders"
+                className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
+                  pathname?.startsWith("/admin/orders")
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                Orders & Delivery
+              </Link>
+              <Link
                 href="/admin/settings/payment"
                 className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
                   pathname === "/admin/settings/payment"
@@ -177,6 +189,20 @@ export default function AdminLayout({
               className="block px-3 py-2 rounded-md text-xs font-medium hover:bg-slate-800"
             >
               Dashboard Overview
+            </Link>
+            <Link
+              href="/admin/orders"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-md text-xs font-medium hover:bg-slate-800"
+            >
+              Orders & CarryBee Delivery
+            </Link>
+            <Link
+              href="/admin/settings/payment"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-md text-xs font-medium hover:bg-slate-800"
+            >
+              Payment Gateways
             </Link>
             <Link
               href="/"

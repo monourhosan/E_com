@@ -1,4 +1,4 @@
-import { Order, CheckoutPayload, Product } from "./api-client";
+import { Order, CheckoutPayload, Product, Delivery } from "./api-client";
 import { MOCK_PRODUCTS } from "./mock-products";
 
 const ORDERS_STORAGE_KEY = "apex_placed_orders_v1";
@@ -247,6 +247,23 @@ export function simulateOrderPaid(
   target.status = "paid";
   target.updated_at = new Date().toISOString();
 
+  // Simulate automated queue dispatch to CarryBee for paid orders
+  const randSuffix = Math.floor(100000 + Math.random() * 900000);
+  target.delivery = {
+    id: Math.floor(Math.random() * 1000000),
+    order_id: target.id,
+    courier: "CarryBee",
+    consignment_id: `CB-CN-${new Date().getFullYear()}-${randSuffix}`,
+    tracking_code: `TRK-CB${randSuffix}`,
+    delivery_fee: 60.0,
+    status: "dispatched",
+    failure_reason: null,
+    dispatched_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  target.status = "dispatched";
+
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
@@ -254,5 +271,50 @@ export function simulateOrderPaid(
   }
 
   return target;
+}
+
+/**
+ * Manually simulate or retry CarryBee delivery dispatch
+ */
+export function simulateDispatchCarryBee(
+  orderNumber: string,
+  forceFail = false
+): { order: Order; delivery: Delivery } | null {
+  const orders = getSimulatedOrders();
+  const target = orders.find((o) => o.order_number === orderNumber);
+  if (!target) return null;
+
+  const now = new Date();
+  const randSuffix = Math.floor(100000 + Math.random() * 900000);
+  const consignmentId = `CB-CN-${now.getFullYear()}-${randSuffix}`;
+  const trackingCode = `TRK-CB${randSuffix}`;
+
+  const delivery: Delivery = {
+    id: target.delivery?.id || Math.floor(Math.random() * 1000000),
+    order_id: target.id,
+    courier: "CarryBee",
+    consignment_id: forceFail ? null : consignmentId,
+    tracking_code: forceFail ? null : trackingCode,
+    delivery_fee: 60.0,
+    status: forceFail ? "failed" : "dispatched",
+    failure_reason: forceFail ? "CarryBee Gateway Timeout 504 (Simulated)" : null,
+    dispatched_at: forceFail ? null : now.toISOString(),
+    created_at: target.delivery?.created_at || now.toISOString(),
+    updated_at: now.toISOString(),
+  };
+
+  target.delivery = delivery;
+  if (!forceFail) {
+    target.status = "dispatched";
+  }
+  target.updated_at = now.toISOString();
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    } catch {}
+  }
+
+  return { order: target, delivery };
 }
 

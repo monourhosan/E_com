@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Order extends Model
@@ -85,9 +86,25 @@ class Order extends Model
     /**
      * Latest payment record for this order.
      */
-    public function latestPayment(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function latestPayment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    /**
+     * An order has one current delivery consignment.
+     */
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(Delivery::class)->latestOfMany();
+    }
+
+    /**
+     * An order has many delivery history records.
+     */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class);
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\OrderDeliveryController;
 use App\Http\Controllers\Api\Admin\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Payment\PaymentController;
@@ -42,6 +43,7 @@ Route::prefix('v1')->group(function () {
         // Atomic Checkout & Order Confirmation
         Route::post('/checkout', [CheckoutController::class, 'checkout'])->name('api.v1.store.checkout');
         Route::get('/orders/{orderNumber}', [CheckoutController::class, 'show'])->name('api.v1.store.orders.show');
+        Route::get('/orders/{orderNumber}/delivery-status', [OrderDeliveryController::class, 'deliveryStatus'])->name('api.v1.store.orders.delivery_status');
 
         // Payment Initiation & Gateway Discovery
         Route::post('/orders/{orderNumber}/pay', [PaymentController::class, 'initiate'])->name('api.v1.store.orders.pay');
@@ -74,6 +76,12 @@ Route::prefix('v1')->group(function () {
 
             // Product Catalog Management CRUD
             Route::apiResource('products', AdminProductController::class)->names('api.v1.admin.products');
+
+            // Order Management & CarryBee Courier Dispatch
+            Route::get('/orders', [OrderDeliveryController::class, 'index'])->name('api.v1.admin.orders.index');
+            Route::get('/orders/{id}', [OrderDeliveryController::class, 'show'])->name('api.v1.admin.orders.show');
+            Route::post('/orders/{id}/dispatch-delivery', [OrderDeliveryController::class, 'dispatchDelivery'])->name('api.v1.admin.orders.dispatch_delivery');
+            Route::get('/orders/{id}/delivery-status', [OrderDeliveryController::class, 'deliveryStatus'])->name('api.v1.admin.orders.delivery_status');
 
             // Payment Configuration Toggles & Sandbox Mode
             Route::get('/settings/payment', [PaymentSettingsController::class, 'show'])->name('api.v1.admin.settings.payment.show');
