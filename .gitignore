@@ -22,6 +22,8 @@ vendor/
 **/.env.*
 !.env.example
 !**/.env.example
+!.env.local.example
+!**/.env.local.example
 
 # Next.js build output
 .next/
