@@ -6,8 +6,10 @@
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis 7](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Tailwind CSS 3.4](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Vercel Ready](https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Vercel Ready](https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://e-com-theta-orpin-66.vercel.app/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+
+> 🚀 **Live Demo:** [https://e-com-theta-orpin-66.vercel.app/](https://e-com-theta-orpin-66.vercel.app/)
 
 A production-grade, full-stack single-vendor e-commerce platform architected with **Next.js 15 (App Router)** and **Laravel 13 REST API**. Engineered for high concurrency, zero inventory overselling via database row locking (`SELECT ... FOR UPDATE`), asynchronous courier dispatch (CarryBee), multi-provider payment idempotency (bKash & SSLCommerz), and sub-50ms catalog retrieval using tagged Redis caching.
 
@@ -303,6 +305,20 @@ For an exhaustive architectural breakdown, rationale for design trade-offs, data
 
 ---
 
+## 🌐 Live Website
+
+https://e-com-theta-orpin-66.vercel.app/
+
+---
+
+## 👨‍💻 Author
+
+**Monour Hosan Saif**
+
+GitHub: https://github.com/monourhosan
+
+---
+
 ## 📄 License
 
-This software is open-sourced under the [MIT License](LICENSE).
+This project is licensed under the MIT License.
