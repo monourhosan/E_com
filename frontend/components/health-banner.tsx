@@ -84,24 +84,31 @@ export function HealthBanner() {
                   <RefreshCw className="h-3 w-3 animate-spin" />
                   Pinging Laravel 13 API...
                 </span>
+              ) : isLiveSite && isLocalhostTarget ? (
+                <div className="flex items-center gap-2 flex-wrap text-slate-300">
+                  <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[11px] py-0">
+                    <CheckCircle2 className="h-3 w-3 mr-1 inline" />
+                    Storefront Online
+                  </Badge>
+                  <span className="text-slate-300">
+                    Interactive Showcase Mode (Catalog, Cart & Checkout Active)
+                  </span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsGuideOpen(true)}
+                    className="h-auto p-0 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 flex items-center gap-1"
+                  >
+                    <HelpCircle className="h-3 w-3" />
+                    Cloud Backend Setup
+                  </Button>
+                </div>
               ) : isError ? (
                 <div className="flex items-center gap-2 flex-wrap text-slate-300">
-                  {isLiveSite && isLocalhostTarget ? (
-                    <>
-                      <Badge variant="outline" className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[11px] py-0">
-                        Live Preview Mode
-                      </Badge>
-                      <span className="text-slate-300">
-                        Cloud API Not Connected (<code className="text-slate-400">{API_BASE_URL}</code>)
-                      </span>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-rose-400">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      <span>API Disconnected (<code className="text-rose-300">{API_BASE_URL}</code>)</span>
-                    </div>
-                  )}
-
+                  <div className="flex items-center gap-1.5 text-rose-400">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span>API Disconnected (<code className="text-rose-300">{API_BASE_URL}</code>)</span>
+                  </div>
                   <Button
                     variant="link"
                     size="sm"
