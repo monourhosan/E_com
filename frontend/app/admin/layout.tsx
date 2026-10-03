@@ -19,6 +19,7 @@ import {
   Bell,
   Menu,
   X,
+  CreditCard,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -93,13 +94,28 @@ export default function AdminLayout({
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-4 text-xs font-medium text-slate-300">
+            <nav className="hidden md:flex items-center gap-3 text-xs font-medium text-slate-300">
               <Link
                 href="/admin"
-                className="px-2.5 py-1.5 rounded-md hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-1.5"
+                className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
+                  pathname === "/admin"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
               >
                 <LayoutDashboard className="h-3.5 w-3.5" />
                 Dashboard
+              </Link>
+              <Link
+                href="/admin/settings/payment"
+                className={`px-2.5 py-1.5 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
+                  pathname === "/admin/settings/payment"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                Payment Gateways
               </Link>
               <Link
                 href="/"

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Store\CartValidationController;
 use App\Http\Controllers\Api\Store\CheckoutController;
 use App\Http\Controllers\Api\Store\ProductController as StoreProductController;
@@ -24,6 +26,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
     });
 
+    // Public Gateway Callbacks & IPN Webhooks (Idempotent)
+    Route::match(['GET', 'POST'], '/payments/callback/{gateway}', [PaymentController::class, 'callback'])
+        ->name('api.v1.payments.callback');
+
     // Public Storefront Catalog, Cart & Checkout
     Route::prefix('store')->group(function () {
         // Products Catalog
@@ -36,6 +42,10 @@ Route::prefix('v1')->group(function () {
         // Atomic Checkout & Order Confirmation
         Route::post('/checkout', [CheckoutController::class, 'checkout'])->name('api.v1.store.checkout');
         Route::get('/orders/{orderNumber}', [CheckoutController::class, 'show'])->name('api.v1.store.orders.show');
+
+        // Payment Initiation & Gateway Discovery
+        Route::post('/orders/{orderNumber}/pay', [PaymentController::class, 'initiate'])->name('api.v1.store.orders.pay');
+        Route::get('/settings/payment-methods', [PaymentController::class, 'getPaymentMethods'])->name('api.v1.store.settings.payment_methods');
     });
 
     // Protected Authenticated Routes (Sanctum)
@@ -64,6 +74,10 @@ Route::prefix('v1')->group(function () {
 
             // Product Catalog Management CRUD
             Route::apiResource('products', AdminProductController::class)->names('api.v1.admin.products');
+
+            // Payment Configuration Toggles & Sandbox Mode
+            Route::get('/settings/payment', [PaymentSettingsController::class, 'show'])->name('api.v1.admin.settings.payment.show');
+            Route::put('/settings/payment', [PaymentSettingsController::class, 'update'])->name('api.v1.admin.settings.payment.update');
         });
     });
 });

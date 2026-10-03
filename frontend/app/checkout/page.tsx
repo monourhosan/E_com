@@ -7,8 +7,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCart } from "@/context/cart-context";
-import { api, ApiError, CheckoutPayload } from "@/lib/api-client";
-import { simulateOfflineCheckout } from "@/lib/order-storage";
+import { api, ApiError, CheckoutPayload, PaymentMethodSettings } from "@/lib/api-client";
+import {
+  simulateOfflineCheckout,
+  getSimulatedPaymentSettings,
+} from "@/lib/order-storage";
+import { PaymentSimulatorModal } from "@/components/payment-simulator-modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -73,9 +77,25 @@ export default function CheckoutPage() {
   const [stockError, setStockError] = React.useState<string | null>(null);
   const [isHydrated, setIsHydrated] = React.useState(false);
 
-  React.useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+  // Payment simulator modal state
+  const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+  const [activePaymentGateway, setActivePaymentGateway] = React.useState<"bkash" | "sslcommerz">("bkash");
+  const [activeOrderNumber, setActiveOrderNumber] = React.useState("");
+  const [activePaymentRecordId, setActivePaymentRecordId] = React.useState<number | undefined>();
+  const [activePaymentId, setActivePaymentId] = React.useState<string | undefined>();
+  const [activeCustomerPhone, setActiveCustomerPhone] = React.useState("");
+
+  const [gatewaySettings, setGatewaySettings] = React.useState<{
+    bkash_enabled: boolean;
+    sslcommerz_enabled: boolean;
+    cod_enabled: boolean;
+    sandbox_mode: boolean;
+  }>({
+    bkash_enabled: true,
+    sslcommerz_enabled: true,
+    cod_enabled: true,
+    sandbox_mode: true,
+  });
 
   const {
     register,
@@ -95,7 +115,50 @@ export default function CheckoutPage() {
     },
   });
 
+  React.useEffect(() => {
+    setIsHydrated(true);
+
+    async function loadGatewaySettings() {
+      try {
+        const res = await api.store.getPaymentMethods();
+        setGatewaySettings({
+          bkash_enabled: res.methods.bkash,
+          sslcommerz_enabled: res.methods.sslcommerz,
+          cod_enabled: res.methods.cod,
+          sandbox_mode: res.sandbox_mode,
+        });
+
+        // Set default payment method to the first enabled one
+        if (!res.methods.bkash) {
+          if (res.methods.sslcommerz) setValue("payment_method", "sslcommerz");
+          else if (res.methods.cod) setValue("payment_method", "cod");
+        }
+      } catch {
+        const sim = getSimulatedPaymentSettings();
+        setGatewaySettings({
+          bkash_enabled: sim.bkash_enabled,
+          sslcommerz_enabled: sim.sslcommerz_enabled,
+          cod_enabled: sim.cod_enabled,
+          sandbox_mode: sim.sandbox_mode,
+        });
+      }
+    }
+
+    loadGatewaySettings();
+  }, [setValue]);
+
   const selectedPaymentMethod = watch("payment_method");
+
+  const handlePaymentSuccess = (transactionId: string) => {
+    setPaymentModalOpen(false);
+    clearCart();
+    router.push(`/order-confirmation/${activeOrderNumber}?payment=success&trx=${transactionId}`);
+  };
+
+  const handlePaymentFailure = (reason: string) => {
+    setPaymentModalOpen(false);
+    setStockError(`Payment was cancelled or unsuccessful: ${reason}. Order #${activeOrderNumber} is saved in pending payment status.`);
+  };
 
   const onSubmit = async (data: CheckoutFormValues) => {
     if (items.length === 0) {
@@ -144,15 +207,46 @@ export default function CheckoutPage() {
         orderNumber = offlineOrder.order_number;
       }
 
-      // Order created successfully
-      toast.success("Order Placed Successfully!", {
-        description: `Order #${orderNumber} has been confirmed.`,
-      });
+      // If Cash on Delivery, order is placed immediately
+      if (data.payment_method === "cod") {
+        toast.success("Order Placed Successfully!", {
+          description: `Order #${orderNumber} confirmed with Cash on Delivery.`,
+        });
+        clearCart();
+        router.push(`/order-confirmation/${orderNumber}`);
+        return;
+      }
 
-      // Clear local cart
+      // Online Gateway: bKash or SSLCommerz
+      try {
+        const payRes = await api.store.initiatePayment(orderNumber, data.payment_method);
+        const initData = payRes.data;
+
+        if (initData.is_sandbox) {
+          setActivePaymentGateway(data.payment_method as "bkash" | "sslcommerz");
+          setActiveOrderNumber(orderNumber);
+          setActivePaymentRecordId(initData.payment_record_id);
+          setActivePaymentId(initData.payment_id);
+          setActiveCustomerPhone(data.customer_phone);
+          setPaymentModalOpen(true);
+          setIsSubmitting(false);
+          return;
+        } else if (initData.redirect_url) {
+          clearCart();
+          window.location.href = initData.redirect_url;
+          return;
+        }
+      } catch {
+        // Offline / fallback simulator
+        setActivePaymentGateway(data.payment_method as "bkash" | "sslcommerz");
+        setActiveOrderNumber(orderNumber);
+        setActiveCustomerPhone(data.customer_phone);
+        setPaymentModalOpen(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       clearCart();
-
-      // Redirect to Order Confirmation page
       router.push(`/order-confirmation/${orderNumber}`);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to place order.";
@@ -382,97 +476,133 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   {/* bKash Card */}
-                  <label
-                    onClick={() => setValue("payment_method", "bkash")}
-                    className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      selectedPaymentMethod === "bkash"
-                        ? "border-[#E2136E] bg-[#E2136E]/5 shadow-sm"
-                        : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      value="bkash"
-                      className="sr-only"
-                      {...register("payment_method")}
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className="h-8 w-8 rounded-lg bg-[#E2136E]/10 text-[#E2136E] flex items-center justify-center font-bold">
+                  {gatewaySettings.bkash_enabled ? (
+                    <label
+                      onClick={() => setValue("payment_method", "bkash")}
+                      className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        selectedPaymentMethod === "bkash"
+                          ? "border-[#E2136E] bg-[#E2136E]/5 shadow-sm"
+                          : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="bkash"
+                        className="sr-only"
+                        {...register("payment_method")}
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="h-8 w-8 rounded-lg bg-[#E2136E]/10 text-[#E2136E] flex items-center justify-center font-bold">
+                          <Smartphone className="h-4 w-4" />
+                        </div>
+                        {selectedPaymentMethod === "bkash" && (
+                          <CheckCircle2 className="h-4 w-4 text-[#E2136E]" />
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-foreground">bKash</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Instant mobile financial payment
+                        </p>
+                      </div>
+                    </label>
+                  ) : (
+                    <div className="p-4 rounded-xl border border-dashed border-border/70 opacity-40 bg-muted/20 cursor-not-allowed">
+                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground">
                         <Smartphone className="h-4 w-4" />
                       </div>
-                      {selectedPaymentMethod === "bkash" && (
-                        <CheckCircle2 className="h-4 w-4 text-[#E2136E]" />
-                      )}
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-muted-foreground">bKash</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Currently Disabled</p>
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <p className="font-bold text-xs text-foreground">bKash</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Instant mobile financial payment
-                      </p>
-                    </div>
-                  </label>
+                  )}
 
                   {/* SSLCommerz Card */}
-                  <label
-                    onClick={() => setValue("payment_method", "sslcommerz")}
-                    className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      selectedPaymentMethod === "sslcommerz"
-                        ? "border-blue-600 bg-blue-600/5 shadow-sm"
-                        : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      value="sslcommerz"
-                      className="sr-only"
-                      {...register("payment_method")}
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className="h-8 w-8 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
+                  {gatewaySettings.sslcommerz_enabled ? (
+                    <label
+                      onClick={() => setValue("payment_method", "sslcommerz")}
+                      className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        selectedPaymentMethod === "sslcommerz"
+                          ? "border-blue-600 bg-blue-600/5 shadow-sm"
+                          : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="sslcommerz"
+                        className="sr-only"
+                        {...register("payment_method")}
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="h-8 w-8 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
+                          <CreditCard className="h-4 w-4" />
+                        </div>
+                        {selectedPaymentMethod === "sslcommerz" && (
+                          <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-foreground">SSLCommerz</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Debit / Credit Cards & NetBanking
+                        </p>
+                      </div>
+                    </label>
+                  ) : (
+                    <div className="p-4 rounded-xl border border-dashed border-border/70 opacity-40 bg-muted/20 cursor-not-allowed">
+                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground">
                         <CreditCard className="h-4 w-4" />
                       </div>
-                      {selectedPaymentMethod === "sslcommerz" && (
-                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                      )}
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-muted-foreground">SSLCommerz</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Currently Disabled</p>
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <p className="font-bold text-xs text-foreground">SSLCommerz</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Debit / Credit Cards & NetBanking
-                      </p>
-                    </div>
-                  </label>
+                  )}
 
                   {/* Cash on Delivery Card */}
-                  <label
-                    onClick={() => setValue("payment_method", "cod")}
-                    className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      selectedPaymentMethod === "cod"
-                        ? "border-emerald-600 bg-emerald-600/5 shadow-sm"
-                        : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      value="cod"
-                      className="sr-only"
-                      {...register("payment_method")}
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-600/10 text-emerald-600 flex items-center justify-center font-bold">
+                  {gatewaySettings.cod_enabled ? (
+                    <label
+                      onClick={() => setValue("payment_method", "cod")}
+                      className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        selectedPaymentMethod === "cod"
+                          ? "border-emerald-600 bg-emerald-600/5 shadow-sm"
+                          : "border-border hover:border-border/80 bg-background/50 hover:bg-muted/30"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="cod"
+                        className="sr-only"
+                        {...register("payment_method")}
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="h-8 w-8 rounded-lg bg-emerald-600/10 text-emerald-600 flex items-center justify-center font-bold">
+                          <Banknote className="h-4 w-4" />
+                        </div>
+                        {selectedPaymentMethod === "cod" && (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-foreground">Cash on Delivery</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Pay upon doorstep arrival
+                        </p>
+                      </div>
+                    </label>
+                  ) : (
+                    <div className="p-4 rounded-xl border border-dashed border-border/70 opacity-40 bg-muted/20 cursor-not-allowed">
+                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground">
                         <Banknote className="h-4 w-4" />
                       </div>
-                      {selectedPaymentMethod === "cod" && (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      )}
+                      <div className="mt-3">
+                        <p className="font-bold text-xs text-muted-foreground">Cash on Delivery</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Currently Disabled</p>
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <p className="font-bold text-xs text-foreground">Cash on Delivery</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Pay upon doorstep arrival
-                      </p>
-                    </div>
-                  </label>
+                  )}
                 </div>
                 {errors.payment_method && (
                   <p className="text-[11px] text-rose-500 font-medium">
@@ -633,6 +763,20 @@ export default function CheckoutPage() {
           </div>
         </form>
       </div>
+
+      {/* Branded Interactive Payment Simulator Modal */}
+      <PaymentSimulatorModal
+        isOpen={paymentModalOpen}
+        gateway={activePaymentGateway}
+        orderNumber={activeOrderNumber}
+        totalAmount={totalAmount}
+        paymentRecordId={activePaymentRecordId}
+        paymentId={activePaymentId}
+        customerPhone={activeCustomerPhone}
+        onSuccess={handlePaymentSuccess}
+        onFailure={handlePaymentFailure}
+        onClose={() => setPaymentModalOpen(false)}
+      />
     </div>
   );
 }

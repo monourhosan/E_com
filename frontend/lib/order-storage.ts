@@ -176,3 +176,83 @@ export function simulateOfflineCheckout(payload: CheckoutPayload): Order {
   saveSimulatedOrder(order);
   return order;
 }
+
+const SETTINGS_STORAGE_KEY = "apex_payment_settings_v1";
+
+export interface SimulatedPaymentSettings {
+  bkash_enabled: boolean;
+  sslcommerz_enabled: boolean;
+  cod_enabled: boolean;
+  active_gateway: string;
+  sandbox_mode: boolean;
+  credentials_status?: {
+    bkash_configured: boolean;
+    sslcommerz_configured: boolean;
+  };
+}
+
+export function getSimulatedPaymentSettings(): SimulatedPaymentSettings {
+  const defaults: SimulatedPaymentSettings = {
+    bkash_enabled: true,
+    sslcommerz_enabled: true,
+    cod_enabled: true,
+    active_gateway: "bkash",
+    sandbox_mode: true,
+    credentials_status: {
+      bkash_configured: false,
+      sslcommerz_configured: false,
+    },
+  };
+
+  if (typeof window === "undefined") return defaults;
+
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (stored) {
+      return { ...defaults, ...JSON.parse(stored) };
+    }
+  } catch (e) {
+    console.error("Failed to read simulated payment settings", e);
+  }
+
+  return defaults;
+}
+
+export function saveSimulatedPaymentSettings(
+  settings: Partial<SimulatedPaymentSettings>
+): SimulatedPaymentSettings {
+  const current = getSimulatedPaymentSettings();
+  const updated = { ...current, ...settings };
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save simulated payment settings", e);
+    }
+  }
+  return updated;
+}
+
+/**
+ * Mark a simulated order as paid
+ */
+export function simulateOrderPaid(
+  orderNumber: string,
+  transactionId?: string
+): Order | null {
+  const orders = getSimulatedOrders();
+  const target = orders.find((o) => o.order_number === orderNumber);
+  if (!target) return null;
+
+  target.status = "paid";
+  target.updated_at = new Date().toISOString();
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    } catch {}
+  }
+
+  return target;
+}
+

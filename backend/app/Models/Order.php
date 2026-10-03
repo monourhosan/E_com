@@ -75,6 +75,22 @@ class Order extends Model
     }
 
     /**
+     * An order has many payments.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Latest payment record for this order.
+     */
+    public function latestPayment(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    /**
      * Formatted total amount string.
      */
     public function getFormattedTotalAmountAttribute(): string

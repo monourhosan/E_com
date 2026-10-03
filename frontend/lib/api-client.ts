@@ -118,6 +118,52 @@ export interface CheckoutResponse {
   data: Order;
 }
 
+export interface PaymentMethodSettings {
+  bkash_enabled: boolean;
+  sslcommerz_enabled: boolean;
+  cod_enabled: boolean;
+  active_gateway?: string;
+  sandbox_mode: boolean;
+  credentials_status?: {
+    bkash_configured: boolean;
+    sslcommerz_configured: boolean;
+  };
+}
+
+export interface PaymentInitiationData {
+  gateway: string;
+  payment_id: string;
+  payment_record_id: number;
+  amount: number;
+  currency: string;
+  order_number: string;
+  redirect_url: string;
+  is_sandbox: boolean;
+}
+
+export interface PaymentInitiationResponse {
+  status: string;
+  message: string;
+  data: PaymentInitiationData;
+}
+
+export interface PaymentCallbackPayload {
+  payment_record_id?: number;
+  payment_id?: string;
+  transaction_id?: string;
+  status?: string;
+  simulate_failure?: boolean;
+  reason?: string;
+}
+
+export interface PaymentCallbackResponse {
+  status: string;
+  message: string;
+  order_number?: string;
+  transaction_id?: string;
+  reason?: string;
+}
+
 export interface PaginatedMeta {
   current_page: number;
   from?: number;
@@ -299,6 +345,23 @@ export const api = {
       }),
     getOrder: (orderNumber: string) =>
       fetchApi<{ data: Order }>(`/store/orders/${orderNumber}`),
+    getPaymentMethods: () =>
+      fetchApi<{
+        status: string;
+        methods: { bkash: boolean; sslcommerz: boolean; cod: boolean };
+        active_gateway: string;
+        sandbox_mode: boolean;
+      }>("/store/settings/payment-methods"),
+    initiatePayment: (orderNumber: string, gateway?: string) =>
+      fetchApi<PaymentInitiationResponse>(`/store/orders/${orderNumber}/pay`, {
+        method: "POST",
+        body: JSON.stringify({ gateway }),
+      }),
+    verifyPaymentCallback: (gateway: string, payload: PaymentCallbackPayload) =>
+      fetchApi<PaymentCallbackResponse>(`/payments/callback/${gateway}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
   admin: {
     dashboard: () => fetchApi<AdminDashboardResponse>("/admin/dashboard"),
@@ -317,6 +380,13 @@ export const api = {
     deleteProduct: (id: number) =>
       fetchApi<{ status: string; message: string }>(`/admin/products/${id}`, {
         method: "DELETE",
+      }),
+    getPaymentSettings: () =>
+      fetchApi<{ status: string; data: PaymentMethodSettings }>("/admin/settings/payment"),
+    updatePaymentSettings: (data: Partial<PaymentMethodSettings>) =>
+      fetchApi<{ status: string; message: string; data: PaymentMethodSettings }>("/admin/settings/payment", {
+        method: "PUT",
+        body: JSON.stringify(data),
       }),
   },
 };

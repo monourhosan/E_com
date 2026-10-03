@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { api, Order } from "@/lib/api-client";
 import { getSimulatedOrderByNumber } from "@/lib/order-storage";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,16 @@ import {
   FileText,
   Clock,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orderNumber = typeof params?.orderNumber === "string" ? params.orderNumber : "";
+  const isPaymentSuccess = searchParams.get("payment") === "success";
+  const transactionId = searchParams.get("trx");
 
   const [order, setOrder] = React.useState<Order | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -136,12 +140,20 @@ export default function OrderConfirmationPage() {
           <div className="inline-flex items-center justify-center p-3 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-8 ring-emerald-500/5 mb-1 animate-in zoom-in-75 duration-500">
             <CheckCircle className="h-12 w-12 sm:h-14 sm:w-14" />
           </div>
-          <Badge
-            variant="success"
-            className="text-xs px-3 py-1 font-semibold tracking-wide uppercase"
-          >
-            Order Confirmed & Locked
-          </Badge>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Badge
+              variant="success"
+              className="text-xs px-3 py-1 font-semibold tracking-wide uppercase"
+            >
+              Order Confirmed & Locked
+            </Badge>
+            {(isPaymentSuccess || order.status === "paid") && (
+              <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 text-xs px-3 py-1 font-semibold tracking-wide flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Payment Verified & Settled
+              </Badge>
+            )}
+          </div>
           <h1 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight">
             Thank you for your order!
           </h1>
@@ -212,6 +224,11 @@ export default function OrderConfirmationPage() {
                 Payment Method
               </span>
               <p className="font-semibold text-foreground">{paymentMethodLabel}</p>
+              {transactionId && (
+                <p className="text-[10px] font-mono text-muted-foreground truncate">
+                  Trx: {transactionId}
+                </p>
+              )}
             </div>
 
             <div className="p-4 sm:p-5 space-y-1">
@@ -219,9 +236,15 @@ export default function OrderConfirmationPage() {
                 <Clock className="h-3.5 w-3.5 text-primary" />
                 Status
               </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 capitalize">
-                {order.status.replace("_", " ")}
-              </span>
+              {order.status === "paid" || isPaymentSuccess ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize">
+                  Paid (Settled)
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 capitalize">
+                  {order.status.replace("_", " ")}
+                </span>
+              )}
             </div>
           </div>
 
@@ -368,3 +391,23 @@ export default function OrderConfirmationPage() {
     </div>
   );
 }
+
+export default function OrderConfirmationPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/40">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Loading order confirmation...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <OrderConfirmationContent />
+    </React.Suspense>
+  );
+}
+
