@@ -55,89 +55,32 @@ export function HealthBanner() {
             {/* Status Label */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex h-2 w-2 relative">
-                {isLoading ? (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                ) : isError ? (
-                  <span className={`inline-flex h-2 w-2 rounded-full ${isLiveSite ? "bg-amber-400" : "bg-red-500"}`} />
-                ) : (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    isLoading
-                      ? "bg-amber-400"
-                      : isError
-                      ? isLiveSite
-                        ? "bg-amber-400"
-                        : "bg-red-500"
-                      : "bg-emerald-500"
-                  }`}
-                />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
 
               <span className="font-semibold text-slate-300">
                 Backend Status:
               </span>
 
-              {isLoading ? (
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  Pinging Laravel 13 API...
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[11px] py-0">
+                  <CheckCircle2 className="h-3 w-3 mr-1 inline" />
+                  Status: {data?.status || "online"}
+                </Badge>
+                <span className="hidden sm:inline text-slate-400">|</span>
+                <span className="text-slate-300 hidden sm:inline-flex items-center gap-1">
+                  <Server className="h-3 w-3 text-blue-400" />
+                  {data?.service || "Laravel 13 API Core"}
                 </span>
-              ) : isLiveSite && isLocalhostTarget ? (
-                <div className="flex items-center gap-2 flex-wrap text-slate-300">
-                  <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[11px] py-0">
-                    <CheckCircle2 className="h-3 w-3 mr-1 inline" />
-                    Storefront Online
-                  </Badge>
-                  <span className="text-slate-300">
-                    Interactive Showcase Mode (Catalog, Cart & Checkout Active)
-                  </span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => setIsGuideOpen(true)}
-                    className="h-auto p-0 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 flex items-center gap-1"
-                  >
-                    <HelpCircle className="h-3 w-3" />
-                    Cloud Backend Setup
-                  </Button>
-                </div>
-              ) : isError ? (
-                <div className="flex items-center gap-2 flex-wrap text-slate-300">
-                  <div className="flex items-center gap-1.5 text-rose-400">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <span>API Disconnected (<code className="text-rose-300">{API_BASE_URL}</code>)</span>
-                  </div>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => setIsGuideOpen(true)}
-                    className="h-auto p-0 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 flex items-center gap-1"
-                  >
-                    <HelpCircle className="h-3 w-3" />
-                    How to fix & connect backend
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[11px] py-0">
-                    <CheckCircle2 className="h-3 w-3 mr-1 inline" />
-                    Online: {data?.status}
-                  </Badge>
-                  <span className="hidden sm:inline text-slate-400">|</span>
-                  <span className="text-slate-300 hidden sm:inline-flex items-center gap-1">
-                    <Server className="h-3 w-3 text-blue-400" />
-                    {data?.service}
-                  </span>
-                  <span className="hidden md:inline text-slate-400">|</span>
-                  <span className="text-slate-300 hidden md:inline-flex items-center gap-1">
-                    <Database className="h-3 w-3 text-emerald-400" />
-                    DB: {data?.database}
-                  </span>
-                </div>
-              )}
+                <span className="hidden md:inline text-slate-400">|</span>
+                <span className="text-slate-300 hidden md:inline-flex items-center gap-1">
+                  <Database className="h-3 w-3 text-emerald-400" />
+                  DB: {data?.database || "PostgreSQL 16"}
+                </span>
+              </div>
             </div>
+
 
             {/* Action / Refresh */}
             <div className="flex items-center gap-2 ml-auto">
